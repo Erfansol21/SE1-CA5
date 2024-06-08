@@ -110,7 +110,9 @@ public class AuctionOrderTest {
         Order order = new Order(11, security, Side.SELL, 3, 15, broker, shareholder, 0);
         orderBook.enqueue(order);
         Trade trade = new Trade(security, 15, 3, orders.get(0), order);
-        MatchResult result = matcher.execute(order);
+        security.findOpeningData();
+        MatchResult result = matcher.executeAuction(order);
+
         assertThat(result.remainder().getQuantity()).isEqualTo(0);
         assertThat(result.trades()).containsExactly(trade);
         assertThat(security.getOrderBook().hasOrderOfType(BUY)).isEqualTo(false);
@@ -174,6 +176,7 @@ public class AuctionOrderTest {
 
     @Test
     void security_state_from_auctioned_to_continuous_change_request_makes_orders_match() {
+        security.findOpeningData();
         orderHandler.handleChangeMatchingState(ChangeMatchingStateRq.createContinuousStateOrderRq("ABC"));
 
         verify(eventPublisher).publish(new TradeEvent("ABC", 15, 3,3,7));
@@ -181,6 +184,7 @@ public class AuctionOrderTest {
 
     @Test
     void stop_limit_order_get_activated_when_open_price_order_get_traded_when_security_state_change_to_auction() {
+        security.findOpeningData();
         security.changeMatchingState(MatchingState.CONTINUOUS);
 
         EnterOrderRq stopLimitOrderRq = EnterOrderRq.createNewOrderRq(2, "ABC", 1, LocalDateTime.now(), BUY, 3, 5, 1, shareholder.getShareholderId(), 0, 0, 7);
@@ -218,5 +222,17 @@ public class AuctionOrderTest {
         orderHandler.handleDeleteOrder(new DeleteOrderRq(599, security.getIsin(), BUY, 1));
 
         verify(eventPublisher).publish(new OrderRejectedEvent(599, 1, List.of(Message.CANNOT_DELETE_STOP_LIMIT_ORDER_IN_AUCTION_STATE)));
+    }
+
+    @Test
+    void new_iceberg_buy_order_matches_with_the_first_buy_with_minimum_quantity_less_than_buy_quantity() {
+        Order incomingSellOrder = new IcebergOrder(2, security, Side.SELL, 7, 15, broker, shareholder, 4, 0);
+        security.getOrderBook().enqueue(incomingSellOrder);
+
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 1, LocalDateTime.now(), BUY, 100, 65, 1, shareholder.getShareholderId(), 70, 0, 0));
+
+        verify(eventPublisher).publish((new OpeningPriceEvent("ABC", 25, 28)));
+        verify(eventPublisher).publish(new TradeEvent("ABC", 25, 4, 1, 2));
+        verify(eventPublisher).publish(new TradeEvent("ABC", 25, 3, 1, 2));
     }
 }

@@ -1,0 +1,13 @@
+package ir.ramtung.tinyme.domain.entity;
+
+public enum RequestStatus {
+    QUEUED_AS_INACTIVE_ORDER,
+    NOT_ENOUGH_CREDIT,
+    NOT_ENOUGH_POSITIONS,
+    NOT_ENOUGH_INITIAL_TRANSACTION,
+    AUCTIONED,
+    ACCEPTED,
+    UPDATED,
+    ACCEPTED_AND_ACTIVATED,
+    UPDATED_AND_ACTIVATED,
+}

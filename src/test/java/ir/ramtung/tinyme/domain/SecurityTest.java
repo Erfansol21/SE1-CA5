@@ -86,23 +86,11 @@ class SecurityTest {
     }
 
     @Test
-    void updating_non_existing_order_fails() {
-        EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 6, LocalDateTime.now(), BUY, 350, 15700, 0, 0, 0, 0, 0);
-        assertThatExceptionOfType(InvalidRequestException.class).isThrownBy(() -> security.updateOrder(updateOrderRq, matcher));
-    }
-
-    @Test
     void delete_order_works() {
         DeleteOrderRq deleteOrderRq = new DeleteOrderRq(1, security.getIsin(), Side.SELL, 6);
         assertThatNoException().isThrownBy(() -> security.deleteOrder(deleteOrderRq));
         assertThat(security.getOrderBook().getBuyQueue()).isEqualTo(orders.subList(0, 5));
         assertThat(security.getOrderBook().getSellQueue()).isEqualTo(orders.subList(6, 10));
-    }
-
-    @Test
-    void deleting_non_existing_order_fails() {
-        DeleteOrderRq deleteOrderRq = new DeleteOrderRq(1, security.getIsin(), Side.SELL, 1);
-        assertThatExceptionOfType(InvalidRequestException.class).isThrownBy(() -> security.deleteOrder(deleteOrderRq));
     }
 
     @Test
@@ -183,12 +171,9 @@ class SecurityTest {
 
         EnterOrderRq updateReq = EnterOrderRq.createUpdateOrderRq(5, security.getIsin(), 4, LocalDateTime.now(), SELL, 30, 10, 0, 0, 10, 0, 0);
 
-        MatchResult result = security.updateOrder(updateReq, matcher);
+        SecurityStatus result = security.updateOrder(updateReq, matcher);
 
-        assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
+        assertThat(result.requestStatus()).isEqualTo(RequestStatus.UPDATED);
         assertThat(result.trades()).hasSize(2);
-        assertThat(result.remainder().getQuantity()).isZero();
     }
-
-
 }

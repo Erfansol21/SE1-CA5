@@ -69,7 +69,7 @@ public class MinimumQuantityTest {
     }
 
     @Test
-    void new_buy_order_matches_if_minimum_execution_quantity_is_riched() {
+    void new_buy_order_matches_if_minimum_execution_quantity_is_reached() {
         Order incomingBuyOrder = new Order(1, security, Side.BUY, 5, 5, brokerBuyer, shareholder, 2);
         Order matchingSellOrder = new Order(2, security, Side.SELL, 3, 5, brokerSeller, shareholder, 0);
         security.getOrderBook().enqueue(matchingSellOrder);
@@ -83,51 +83,32 @@ public class MinimumQuantityTest {
     }
     @Test
     void invalid_buy_order_if_minimum_quantity_more_than_quantity() {
-        Order matchingBuyOrder = new Order(1, security, Side.BUY, 5, 5, brokerBuyer, shareholder, 6);
         Order incomingSellOrder = new Order(2, security, Side.SELL, 3, 5, brokerSeller, shareholder, 0);
         security.getOrderBook().enqueue(incomingSellOrder);
 
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 1, LocalDateTime.now(), BUY, 5, 5, 1, shareholder.getShareholderId(), 0, 6, 0));
 
-        Trade trade = new Trade(security, 5, 3, matchingBuyOrder, incomingSellOrder);
-
         verify(eventPublisher).publish(new OrderRejectedEvent(1, 1, List.of(Message.INVALID_MINIMUM_EXECUTION_QUANTITY)));
     }
     @Test
     void invalid_order_if_minimum_quantity_less_than_zero() {
-        Order matchingBuyOrder = new Order(1, security, Side.BUY, 5, 5, brokerBuyer, shareholder, -1);
-        Order incomingSellOrder = new Order(2, security, Side.SELL, 3, 5, brokerSeller, shareholder, 0);
-        security.getOrderBook().enqueue(incomingSellOrder);
-
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 1, LocalDateTime.now(), BUY, 5, 5, 1, shareholder.getShareholderId(), 0, -1, 0));
-
-        Trade trade = new Trade(security, 5, 3, matchingBuyOrder, incomingSellOrder);
-
         verify(eventPublisher).publish(new OrderRejectedEvent(1, 1, List.of(Message.MINIMUM_EXECUTION_QUANTITY_NOT_POSITIVE)));
     }
     @Test
-    void reject_order_if_minimum_executed_quantity_not_meeted() {
-        Order matchingSellOrder = new Order(2, security, Side.SELL, 3, 5, brokerSeller, shareholder, 0);
-        security.getOrderBook().enqueue(matchingSellOrder);
-
+    void invalid_order_if_minimum_executed_quantity_not_met() {
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 1, LocalDateTime.now(), BUY, 5, 5, 1, shareholder.getShareholderId(), 0, 4, 0));
-
         verify(eventPublisher).publish(new OrderRejectedEvent(1, 1, List.of(Message.BROKER_HAS_NOT_ENOUGH_INITIAL_TRANSACTION)));
     }
     @Test
     void invalid_update_order_if_minimum_quantity_more_than_quantity() {
-        Order matchingSellOrder = new Order(2, security, Side.SELL, 3, 5, brokerSeller, shareholder, 0);
-        security.getOrderBook().enqueue(matchingSellOrder);
-
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 1, LocalDateTime.now(), BUY, 5, 5, 1, shareholder.getShareholderId(), 0, 2, 0));
-
         orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 1, LocalDateTime.now(), BUY, 1, 5, 1, shareholder.getShareholderId(), 0, 2,0));
 
         verify(eventPublisher).publish(new OrderRejectedEvent(1, 1, List.of(Message.INVALID_MINIMUM_EXECUTION_QUANTITY)));
     }
     @Test
     void invalid_update_order_if_minimum_quantity_has_changed() {
-        Order matchingBuyOrder = new Order(1, security, Side.BUY, 5, 5, brokerBuyer, shareholder, 2);
         Order incomingSellOrder = new Order(2, security, Side.SELL, 3, 5, brokerSeller, shareholder, 0);
         security.getOrderBook().enqueue(incomingSellOrder);
 
@@ -150,11 +131,11 @@ public class MinimumQuantityTest {
     }
     @Test
     void new_iceberg_buy_order_matches_with_the_first_buy_with_minimum_quantity_less_than_buy_quantity() {
-        Order matchingBuyOrder = new IcebergOrder(1, security, Side.BUY, 5, 5, brokerBuyer, shareholder, 40,2);
-        Order incomingSellOrder = new IcebergOrder(2, security, Side.SELL, 3, 5, brokerSeller, shareholder, 40, 0);
+        Order matchingBuyOrder = new IcebergOrder(1, security, Side.BUY, 5, 5, brokerBuyer, shareholder, 4,2);
+        Order incomingSellOrder = new IcebergOrder(2, security, Side.SELL, 3, 5, brokerSeller, shareholder, 4, 0);
         security.getOrderBook().enqueue(incomingSellOrder);
 
-        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 1, LocalDateTime.now(), BUY, 5, 5, 1, shareholder.getShareholderId(), 0, 2, 0));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 1, LocalDateTime.now(), BUY, 5, 5, 1, shareholder.getShareholderId(), 4, 2, 0));
 
         Trade trade = new Trade(security, 5, 3, matchingBuyOrder, incomingSellOrder);
 
@@ -163,12 +144,7 @@ public class MinimumQuantityTest {
     }
     @Test
     void invalid_iceberg_buy_order_if_minimum_quantity_more_than_buy_quantity() {
-        Order matchingBuyOrder = new IcebergOrder(1, security, Side.BUY, 5, 5, brokerBuyer, shareholder, 40, 4);
-        Order incomingSellOrder = new IcebergOrder(2, security, Side.SELL, 3, 5, brokerSeller, shareholder, 40, 0);
-        security.getOrderBook().enqueue(incomingSellOrder);
-
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 1, LocalDateTime.now(), BUY, 5, 5, 1, shareholder.getShareholderId(), 0, 4, 0));
-
         verify(eventPublisher).publish(new OrderRejectedEvent(1, 1, List.of(Message.BROKER_HAS_NOT_ENOUGH_INITIAL_TRANSACTION)));
     }
     @Test
